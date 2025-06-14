@@ -8,6 +8,6 @@ const router = express.Router();
 router.post('/upload', authenticateToken, upload.single('file'), uploadMedia);
 router.get('/', getMedia);
 router.post('/:id/like', likeMedia);
-router.post('/:id/unlike', unlikeMedia);
+router.post('/:id/dislike', unlikeMedia);
 
 export default router;
