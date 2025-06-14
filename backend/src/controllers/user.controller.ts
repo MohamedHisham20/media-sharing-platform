@@ -25,6 +25,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         email: user.email,
         username: user.username}});
   } catch (err) {
+    console.error('Register error:', err); // Add this line
     res.status(500).json({ message: 'Error registering user' });
   }
 };
