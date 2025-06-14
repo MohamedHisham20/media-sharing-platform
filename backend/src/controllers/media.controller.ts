@@ -41,7 +41,7 @@ export const uploadMedia = async (req: Request, res: Response): Promise<void> =>
 
 export const getMedia = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const media = await Media.find().populate('user', 'email');
+    const media = await Media.find().populate('user', 'username').sort({ createdAt: -1 });
     res.json(media);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching media' });
