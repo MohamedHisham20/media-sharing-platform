@@ -6,8 +6,8 @@ import { authenticateToken } from '../middlewares/auth.middleware';
 const router = express.Router();
 
 router.post('/upload', authenticateToken, upload.single('file'), uploadMedia);
-router.get('/', getMedia);
-router.post('/:id/like', likeMedia);
-router.post('/:id/dislike', unlikeMedia);
+router.get('/',authenticateToken, getMedia);
+router.post('/:id/like', authenticateToken, likeMedia);
+router.post('/:id/dislike', authenticateToken, unlikeMedia);
 
 export default router;

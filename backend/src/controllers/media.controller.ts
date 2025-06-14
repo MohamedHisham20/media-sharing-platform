@@ -42,6 +42,15 @@ export const uploadMedia = async (req: Request, res: Response): Promise<void> =>
 
 export const getMedia = async (_req: Request, res: Response): Promise<void> => {
   try {
+    // If want to filter media by userId
+    //  const userId = (req as any).userId;
+    // //  use userId for filtering if needed
+
+    // const media = await Media.find()
+    //   .populate('user', 'username')
+    //   .sort({ createdAt: -1 });
+    // res.json(media);
+
     const media = await Media.find().populate('user', 'username').sort({ createdAt: -1 });
     res.json(media);
   } catch (error) {
@@ -51,7 +60,13 @@ export const getMedia = async (_req: Request, res: Response): Promise<void> => {
 
 export const likeMedia = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = req.body;
+    const userId = (req as any).userId; // Assuming userId is set in the request by authentication middleware
+    
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+    
     const user = await User.findById(userId);
     if (!user) {
       res.status(404).json({ message: 'User not found' });

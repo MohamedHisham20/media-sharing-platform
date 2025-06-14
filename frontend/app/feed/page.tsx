@@ -32,32 +32,56 @@ interface MediaItem {
 
 export default function FeedPage() {
   const [media, setMedia] = useState<MediaItem[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
 
   useEffect(() => {
+    // Get auth from localStorage (browser only)
+    const authRaw = typeof window !== "undefined" ? localStorage.getItem("auth") : null
+    let userId = null
+    let token = null
+    if (authRaw) {
+      try {
+        const auth = JSON.parse(authRaw)
+        userId = auth.userId
+        token = auth.token
+        setUserId(userId)
+        setToken(token)
+      } catch (e) {
+        setUserId(null)
+        setToken(null)
+      }
+    }
+
+    // Fetch media
     const fetchMedia = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media`)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media`, {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {},
+        })
         const data = await res.json()
-        setMedia(data)
+        setMedia(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error("Failed to fetch media:", error)
+        setMedia([])
       }
     }
 
     fetchMedia()
   }, [])
 
-const auth = JSON.parse(localStorage.getItem("auth") || "{}");
-const userId = auth.userId;
-const token = auth.token;
-
 const handleLike = async (id: string) => {
+  if (!userId || !token) return
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/like`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, // optional but good for securing
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ userId }),
     });
@@ -77,12 +101,13 @@ const handleLike = async (id: string) => {
 };
 
 const handleDislike = async (id: string) => {
+  if (!userId || !token) return
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/dislike`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, // optional
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ userId }),
     });
