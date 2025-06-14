@@ -49,8 +49,8 @@ export default function LoginPage() {
             })
         );
 
-      // Redirect to home or dashboard
-      router.push('/')
+      // Redirect to feed
+      router.push('/feed')
     } catch (err: any) {
       setError(err.message)
     } finally {

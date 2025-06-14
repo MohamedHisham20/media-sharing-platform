@@ -47,14 +47,19 @@ export default function FeedPage() {
     fetchMedia()
   }, [])
 
+const auth = JSON.parse(localStorage.getItem("auth") || "{}");
+const userId = auth.userId;
+const token = auth.token;
+
 const handleLike = async (id: string) => {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/like`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`, // optional if protected
+        Authorization: `Bearer ${token}`, // optional but good for securing
       },
+      body: JSON.stringify({ userId }),
     });
 
     const data = await res.json();
@@ -77,8 +82,9 @@ const handleDislike = async (id: string) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`, // optional if protected
+        Authorization: `Bearer ${token}`, // optional
       },
+      body: JSON.stringify({ userId }),
     });
 
     const data = await res.json();
@@ -94,6 +100,7 @@ const handleDislike = async (id: string) => {
     console.error("Failed to dislike:", err);
   }
 };
+
 
 
   return (
