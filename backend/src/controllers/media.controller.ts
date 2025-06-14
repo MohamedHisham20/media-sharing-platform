@@ -52,38 +52,42 @@ export const getMedia = async (_req: Request, res: Response): Promise<void> => {
 export const likeMedia = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.body;
-    
-    // Fetch the user document
     const user = await User.findById(userId);
     if (!user) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
-
     const mediaId = new mongoose.Types.ObjectId(req.params.id);
-    
-    if (user.likedMedia.includes(mediaId)) {
-      // decreament likes if already liked
-      await Media.findByIdAndUpdate(req.params.id, { $inc: { likes: -1 } });
-      // remove the like from the user's liked media
-      await User.findByIdAndUpdate(userId, { $pull: { likedMedia: mediaId } });
-      res.status(400).json({ message: 'Media already liked' });
+    const media = await Media.findById(req.params.id);
+    if (!media) {
+      res.status(404).json({ message: 'Media not found' });
       return;
     }
-    if (user.dislikedMedia.includes(mediaId)) {
-      // remove from disliked media if it was disliked before
-      await User.findByIdAndUpdate(userId, { $pull: { dislikedMedia: mediaId } });
-      // decrement dislikes
-      await Media.findByIdAndUpdate(req.params.id, { $inc: { dislikes: -1 } });
+
+    const hasLiked = user.likedMedia.some(id => id.equals(mediaId));
+    const hasDisliked = user.dislikedMedia.some(id => id.equals(mediaId));
+
+    if (hasLiked) {
+      // Remove like
+      await Media.findByIdAndUpdate(mediaId, { $inc: { likes: -1 } });
+      await User.findByIdAndUpdate(userId, { $pull: { likedMedia: mediaId } });
+      res.status(200).json({ message: 'Like removed', likes: media.likes - 1, dislikes: media.dislikes });
+      return;
     }
-    // add to liked media
+
+    if (hasDisliked) {
+      // Remove dislike
+      await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: -1 } });
+      await User.findByIdAndUpdate(userId, { $pull: { dislikedMedia: mediaId } });
+    }
+
+    // Add like
+    await Media.findByIdAndUpdate(mediaId, { $inc: { likes: 1 } });
     await User.findByIdAndUpdate(userId, { $addToSet: { likedMedia: mediaId } });
-    // increment likes
-    await Media.findByIdAndUpdate(req.params.id, { $inc: { likes: 1 } });
-    res.json({ message: 'Liked' });
+
+    res.status(200).json({ message: 'Liked', likes: media.likes + 1, dislikes: hasDisliked ? media.dislikes - 1 : media.dislikes });
   } catch (error) {
     console.error('Error liking media:', error);
-    // Log the error for debugging
     res.status(500).json({ message: 'Error liking media' });
   }
 };
@@ -91,37 +95,41 @@ export const likeMedia = async (req: Request, res: Response): Promise<void> => {
 export const unlikeMedia = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.body;
-
-    // Fetch the user document
     const user = await User.findById(userId);
     if (!user) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
-
     const mediaId = new mongoose.Types.ObjectId(req.params.id);
-
-    if (user.likedMedia.includes(mediaId)) {
-      // decrement likes if already liked
-      await Media.findByIdAndUpdate(req.params.id, { $inc: { likes: -1 } });
-      // remove the like from the user's liked media
-      await User.findByIdAndUpdate(userId, { $pull: { likedMedia: mediaId } });
-      
-    }
-    if (user.dislikedMedia.includes(mediaId)) {
-      // already disliked, so remove the dislike
-      await User.findByIdAndUpdate(userId, { $pull: { dislikedMedia: mediaId } });
-      // decrement dislikes
-      await Media.findByIdAndUpdate(req.params.id, { $inc: { dislikes: -1 } });
-      res.status(400).json({ message: 'Media already disliked' });
+    const media = await Media.findById(req.params.id);
+    if (!media) {
+      res.status(404).json({ message: 'Media not found' });
       return;
     }
-    // add to disliked media
+
+    const hasLiked = user.likedMedia.some(id => id.equals(mediaId));
+    const hasDisliked = user.dislikedMedia.some(id => id.equals(mediaId));
+
+    if (hasDisliked) {
+      // Remove dislike
+      await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: -1 } });
+      await User.findByIdAndUpdate(userId, { $pull: { dislikedMedia: mediaId } });
+      res.status(200).json({ message: 'Dislike removed', likes: media.likes, dislikes: media.dislikes - 1 });
+      return;
+    }
+
+    if (hasLiked) {
+      // Remove like
+      await Media.findByIdAndUpdate(mediaId, { $inc: { likes: -1 } });
+      await User.findByIdAndUpdate(userId, { $pull: { likedMedia: mediaId } });
+    }
+
+    // Add dislike
+    await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: 1 } });
     await User.findByIdAndUpdate(userId, { $addToSet: { dislikedMedia: mediaId } });
-    // increment dislikes
-    await Media.findByIdAndUpdate(req.params.id, { $inc: { dislikes: 1 } });
-    res.json({ message: 'Disliked' });
+
+    res.status(200).json({ message: 'Disliked', likes: hasLiked ? media.likes - 1 : media.likes, dislikes: media.dislikes + 1 });
   } catch (error) {
     res.status(500).json({ message: 'Error unliking media', error });
   }
-}
+};

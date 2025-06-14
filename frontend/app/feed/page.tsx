@@ -22,6 +22,7 @@ interface MediaItem {
   url: string
   type: string
   likes: number
+  dislikes: number
   createdAt: string
   user: {
     _id: string
@@ -46,27 +47,54 @@ export default function FeedPage() {
     fetchMedia()
   }, [])
 
-  const handleLike = async (id: string) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/like`, {
-      method: "POST"
-    })
-    setMedia((prev) =>
-      prev.map((item) =>
-        item._id === id ? { ...item, likes: item.likes + 1 } : item
-      )
-    )
-  }
+const handleLike = async (id: string) => {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/like`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`, // optional if protected
+      },
+    });
 
-  const handleDislike = async (id: string) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/dislike`, {
-      method: "POST"
-    })
+    const data = await res.json();
+
     setMedia((prev) =>
       prev.map((item) =>
-        item._id === id ? { ...item, likes: Math.max(0, item.likes - 1) } : item
+        item._id === id
+          ? { ...item, likes: data.likes, dislikes: data.dislikes ?? item.dislikes }
+          : item
       )
-    )
+    );
+  } catch (err) {
+    console.error("Failed to like:", err);
   }
+};
+
+const handleDislike = async (id: string) => {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/dislike`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`, // optional if protected
+      },
+    });
+
+    const data = await res.json();
+
+    setMedia((prev) =>
+      prev.map((item) =>
+        item._id === id
+          ? { ...item, dislikes: data.dislikes, likes: data.likes ?? item.likes }
+          : item
+      )
+    );
+  } catch (err) {
+    console.error("Failed to dislike:", err);
+  }
+};
+
 
   return (
     <div className="container grid gap-6 py-10 md:grid-cols-2 lg:grid-cols-3">
