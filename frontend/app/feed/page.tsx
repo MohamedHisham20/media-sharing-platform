@@ -3,6 +3,9 @@
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 dayjs.extend(relativeTime)
+import Link from "next/link";
+import { Plus } from "lucide-react";
+
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
@@ -160,6 +163,15 @@ const handleDislike = async (id: string) => {
           </CardFooter>
         </Card>
       ))}
+      {/* Upload Button */}
+      <Link href="/upload">
+        <Button
+          className="fixed bottom-6 right-6 rounded-full h-14 w-14 p-0 shadow-lg"
+          size="icon"
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
+      </Link>
     </div>
   )
 }

@@ -7,7 +7,13 @@ import mongoose from 'mongoose';
 
 export const uploadMedia = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, userId } = req.body;
+    const { title } = req.body;
+    const userId = (req as any).userId; // Assuming userId is set in the request by authentication middleware
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+    
     const file = req.file;
 
     if (!file) {
@@ -57,6 +63,20 @@ export const getMedia = async (_req: Request, res: Response): Promise<void> => {
     res.status(500).json({ message: 'Error fetching media' });
   }
 };
+
+export const getPublicMedia = async (_req: Request, res: Response) => {
+  try {
+    const media = await Media.find()
+      .populate('user', 'username')
+      .sort({ createdAt: -1 })
+      .limit(6); // Only show latest 6
+
+    res.json(media);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching public media' });
+  }
+};
+
 
 export const likeMedia = async (req: Request, res: Response): Promise<void> => {
   try {
