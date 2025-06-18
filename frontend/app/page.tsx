@@ -5,12 +5,11 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
-const sampleImages = [
-  "https://res.cloudinary.com/dyonadiwa/image/upload/v1749797476/media/kwhdxddinbgitnn8yway.jpg",
-  "https://res.cloudinary.com/dyonadiwa/image/upload/v1749800697/media/ggfpsl9xf6i0seg4qofn.jpg",
-  "https://res.cloudinary.com/dyonadiwa/image/upload/v1749922879/media/zhefq4rvxomiglhc720d.jpg",
-  // Add more URLs as needed
-];
+interface MediaItem {
+  _id: string;
+  url: string;
+  title: string;
+}
 
 interface PositionedImage {
   src: string;
@@ -24,22 +23,29 @@ export default function LandingPage() {
   const [images, setImages] = useState<PositionedImage[]>([]);
 
   useEffect(() => {
-    const generateImages = () => {
-      const count = 8;
-      const newImages = Array.from({ length: count }, () => {
-        const size = Math.random() * 120 + 100; // 100–220px
-        return {
-          src: sampleImages[Math.floor(Math.random() * sampleImages.length)],
+    const fetchImages = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/public`);
+        const data: MediaItem[] = await res.json();
+
+        const limited = data.slice(0, 6); // Limit to latest 6 images
+
+        const positioned: PositionedImage[] = limited.map((item) => ({
+          src: item.url,
           top: Math.random() * 60 + 10, // 10–70vh
           left: Math.random() * 80 + 10, // 10–90vw
-          size,
+          size: Math.random() * 120 + 100, // 100–220px
           blur: Math.random() * 3 + 2, // 2–5px
-        };
-      });
-      setImages(newImages);
+        }));
+
+        setImages(positioned);
+      } catch (error) {
+        console.error("Failed to fetch public media:", error);
+      }
     };
-    generateImages();
-    const interval = setInterval(generateImages, 6000);
+
+    fetchImages();
+    const interval = setInterval(fetchImages, 6000);
     return () => clearInterval(interval);
   }, []);
 
@@ -58,7 +64,7 @@ export default function LandingPage() {
             style={{
               top: `${img.top}vh`,
               left: `${img.left}vw`,
-              filter: `blur(${img.blur}px)`
+              filter: `blur(${img.blur}px)`,
             }}
           />
         ))}
