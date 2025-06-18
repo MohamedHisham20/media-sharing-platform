@@ -1,6 +1,6 @@
 // app/screens/FeedScreen.tsx
-import React, { useEffect, useState } from "react";
-import { View, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, ScrollView, ActivityIndicator, StyleSheet, RefreshControl } from "react-native";
 import MediaCard from "../components/MediaCard";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -23,6 +23,7 @@ const FeedScreen = () => {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [likedMedia, setLikedMedia] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchMedia = async () => {
     setLoading(true);
@@ -102,16 +103,17 @@ const FeedScreen = () => {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchMedia();
+    await fetchLikedMedia();
+    setRefreshing(false);
+  }, []);
+
   useEffect(() => {
     fetchMedia();
     fetchLikedMedia();
     fetchDislikedMedia();
-    // // set up a polling mechanism to refresh the feed periodically
-    // const interval = setInterval(() => {
-    //   fetchMedia();
-    //   fetchLikedMedia();
-    //   fetchDislikedMedia();
-    // }, 30000); // Refresh every 30 seconds
   }, []);
 
   if (loading) {
@@ -123,7 +125,12 @@ const FeedScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
+      }
+    >
       {media.map((item) => (
         <MediaCard
           key={item._id}

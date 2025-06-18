@@ -1,41 +1,73 @@
 import * as ImagePicker from "expo-image-picker";
 import { View, Button, TextInput, Alert } from "react-native";
-import { useState, useContext, use } from "react";
+import { useState } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 export default function UploadScreen() {
+  const [image, setImage] = useState<string | null>(null);
+  const [video, setVideo] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [uploading, setUploading] = useState(false);
   const { token, userId } = useAuth();
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      quality: 1,
+const pickAndUploadImage = async () => {
+  if (!userId || !token) {
+    Alert.alert("You must be logged in to upload.");
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images', 'videos'], 
+    allowsEditing: true,
+    quality: 1,
+  });
+
+  console.log("ImagePicker result:", result);
+
+  if (result.canceled || result.assets.length === 0) {
+    return;
+  }
+
+  setImage(result.assets[0].uri);
+
+  // 🔍 Ensure the file has a URI
+  if (!image) {
+    Alert.alert("Invalid file");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("userId", userId);
+  formData.append("file", {
+    uri: image,
+    name: result.assets[0].fileName || "upload.jpg", // Use fileName if available
+    type: result.assets[0].mimeType || "image/jpeg", // Default to jpeg if
+    // type is not provided
+  } as any);
+  setUploading(true);
+  try {
+    const res = await axios.post(`${API_URL}/media/upload`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data", // ✅ Required in React Native
+      }
     });
 
-    if (!result.canceled && result.assets.length > 0) {
-      const file = result.assets[0];
-
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("file", {
-        uri: file.uri,
-        name: "upload.jpg",
-        type: file.type || "image/jpeg",
-      } as any);
-
-      axios
-        .post(`${process.env.EXPO_PUBLIC_API_URL}/media/upload`, formData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        })
-        .then(() => Alert.alert("Upload successful"))
-        .catch((e) => Alert.alert("Error uploading", e.message));
-    }
-  };
+    Alert.alert("Upload successful!");
+    setTitle("");
+  } catch (err: any) {
+    Alert.alert(
+      "Upload failed",
+      err?.response?.data?.message || err.message || "Unknown error"
+    );
+  } finally {
+    setUploading(false);
+  }
+};
 
   return (
     <View style={{ padding: 20 }}>
@@ -43,9 +75,13 @@ export default function UploadScreen() {
         placeholder="Title"
         value={title}
         onChangeText={setTitle}
-        style={{ borderWidth: 1, marginBottom: 10 }}
+        style={{ borderWidth: 1, marginBottom: 10, padding: 8 }}
       />
-      <Button title="Pick & Upload" onPress={pickImage} />
+      <Button
+        title={uploading ? "Uploading..." : "Pick & Upload"}
+        onPress={pickAndUploadImage}
+        disabled={uploading}
+      />
     </View>
   );
 }
