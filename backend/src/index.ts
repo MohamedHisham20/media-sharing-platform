@@ -7,7 +7,23 @@ import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
 
 const app = express();
-app.use(cors());
+
+// CORS middleware
+app.use(cors({
+  origin: '*', // Or specify your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
+  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
+}));
+
+// Custom middleware to allow Range header for video streaming
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*'); // Or your frontend URL
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+  res.header('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length, Content-Type');
+  next();
+});
+
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 

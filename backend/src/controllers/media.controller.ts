@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 export const uploadMedia = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title } = req.body;
-    console.log('Title:', title);
+
     const userId = (req as any).userId; // Assuming userId is set in the request by authentication middleware
     if (!userId) {
       res.status(401).json({ message: 'Unauthorized' });
@@ -108,7 +108,6 @@ export const likeMedia = async (req: Request, res: Response): Promise<void> => {
       // Remove like
       await Media.findByIdAndUpdate(mediaId, { $inc: { likes: -1 } });
       await User.findByIdAndUpdate(userId, { $pull: { likedMedia: mediaId } });
-      console.log('Like removed');
       res.status(200).json({ message: 'Like removed', likes: media.likes - 1, dislikes: media.dislikes });
       return;
     }
@@ -152,7 +151,6 @@ export const unlikeMedia = async (req: Request, res: Response): Promise<void> =>
       // Remove dislike
       await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: -1 } });
       await User.findByIdAndUpdate(userId, { $pull: { dislikedMedia: mediaId } });
-      console.log('Dislike removed');
       res.status(200).json({ message: 'Dislike removed', likes: media.likes, dislikes: media.dislikes - 1 });
       return;
     }
@@ -167,7 +165,6 @@ export const unlikeMedia = async (req: Request, res: Response): Promise<void> =>
     await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: 1 } });
     await User.findByIdAndUpdate(userId, { $addToSet: { dislikedMedia: mediaId } });
 
-    console.log('Disliked media')
     res.status(200).json({ message: 'Disliked', likes: hasLiked ? media.likes - 1 : media.likes, dislikes: media.dislikes + 1 });
   } catch (error) {
     res.status(500).json({ message: 'Error unliking media', error });

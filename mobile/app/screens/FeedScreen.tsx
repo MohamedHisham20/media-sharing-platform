@@ -13,6 +13,7 @@ interface MediaItem {
   url: string;
   title: string;
   createdAt: string;
+  type: string;
   user: { username: string; _id: string };
   likes: number;
   dislikes: number;
@@ -30,6 +31,10 @@ const FeedScreen = () => {
     try {
       const res = await axios.get(`${API_URL}/media`, {
         headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("Fetched media:", res.data);
+      res.data.forEach((item: any) => {
+        console.log("Media item:", item);
       });
       setMedia(res.data);
     } catch (error) {

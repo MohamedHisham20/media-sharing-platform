@@ -7,7 +7,6 @@ import { useAuth } from "../context/AuthContext";
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function UploadScreen() {
-  const [image, setImage] = useState<string | null>(null);
   const [video, setVideo] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -31,7 +30,7 @@ const pickAndUploadImage = async () => {
     return;
   }
 
-  setImage(result.assets[0].uri);
+  const image = result.assets[0].uri;
 
   // 🔍 Ensure the file has a URI
   if (!image) {
