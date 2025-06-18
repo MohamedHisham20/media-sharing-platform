@@ -1,89 +1,97 @@
-// app/page.tsx
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import dayjs from "dayjs"
-import relativeTime from "dayjs/plugin/relativeTime"
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 
-dayjs.extend(relativeTime)
+const sampleImages = [
+  "https://res.cloudinary.com/dyonadiwa/image/upload/v1749797476/media/kwhdxddinbgitnn8yway.jpg",
+  "https://res.cloudinary.com/dyonadiwa/image/upload/v1749800697/media/ggfpsl9xf6i0seg4qofn.jpg",
+  "https://res.cloudinary.com/dyonadiwa/image/upload/v1749922879/media/zhefq4rvxomiglhc720d.jpg",
+  // Add more URLs as needed
+];
 
-interface MediaItem {
-  _id: string
-  title: string
-  url: string
-  createdAt: string
-  user: {
-    username: string
-  }
+interface PositionedImage {
+  src: string;
+  top: number;
+  left: number;
+  size: number;
+  blur: number;
 }
 
 export default function LandingPage() {
-  const [media, setMedia] = useState<MediaItem[]>([])
+  const [images, setImages] = useState<PositionedImage[]>([]);
 
   useEffect(() => {
-    const fetchMedia = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/public`)
-        const data = await res.json()
-        setMedia(data.slice(0, 6)) // Show top 6 most recent media
-      } catch (err) {
-        console.error("Error fetching media:", err)
-      }
-    }
-
-    fetchMedia()
-  }, [])
+    const generateImages = () => {
+      const count = 8;
+      const newImages = Array.from({ length: count }, () => {
+        const size = Math.random() * 120 + 100; // 100–220px
+        return {
+          src: sampleImages[Math.floor(Math.random() * sampleImages.length)],
+          top: Math.random() * 60 + 10, // 10–70vh
+          left: Math.random() * 80 + 10, // 10–90vw
+          size,
+          blur: Math.random() * 3 + 2, // 2–5px
+        };
+      });
+      setImages(newImages);
+    };
+    generateImages();
+    const interval = setInterval(generateImages, 6000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <main className="min-h-screen bg-background px-4 py-20 text-center">
-      <section className="space-y-6">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Welcome to MediaShare
-        </h1>
-        <p className="text-muted-foreground max-w-xl mx-auto text-lg">
-          Share photos, discover posts, and engage with others.
-        </p>
-        <div className="flex justify-center gap-4">
-          <Link href="/login">
-            <Button size="lg">Login</Button>
-          </Link>
-          <Link href="/register">
-            <Button variant="outline" size="lg">
-              Register
-            </Button>
-          </Link>
-        </div>
-      </section>
+    <div className="relative h-screen w-full overflow-hidden bg-black text-white">
+      {/* Background Images */}
+      <div className="absolute inset-0 z-0">
+        {images.map((img, idx) => (
+          <Image
+            key={idx}
+            src={img.src}
+            alt="bg-img"
+            width={img.size}
+            height={img.size}
+            className="absolute rounded-xl object-cover opacity-20 transition-all duration-1000"
+            style={{
+              top: `${img.top}vh`,
+              left: `${img.left}vw`,
+              filter: `blur(${img.blur}px)`
+            }}
+          />
+        ))}
+      </div>
 
-      {/* Live Feed Preview */}
-      <section className="mt-16">
-        <h2 className="text-2xl font-semibold mb-6">Recent Uploads</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {media.map((item) => (
-            <Card key={item._id}>
-              <CardHeader>
-                <CardTitle>{item.title}</CardTitle>
-                <CardDescription>
-                  Uploaded by {item.user.username} · {dayjs(item.createdAt).fromNow()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Image
-                  src={item.url}
-                  alt={item.title}
-                  width={400}
-                  height={300}
-                  className="rounded-md object-cover"
-                />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-    </main>
-  )
+      {/* Overlay */}
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-6 bg-black/40 text-center px-6">
+        <motion.h1
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-4xl font-bold md:text-6xl"
+        >
+          Share Your World
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.7 }}
+          className="max-w-xl text-muted-foreground"
+        >
+          A vibrant platform for sharing your best moments with the world. Join now to upload, like, and explore.
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.6 }}
+          className="flex gap-4"
+        >
+          <Button variant="default">Login</Button>
+          <Button variant="secondary">Register</Button>
+        </motion.div>
+      </div>
+    </div>
+  );
 }
