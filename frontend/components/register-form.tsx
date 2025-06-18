@@ -38,11 +38,12 @@ export default function RegisterForm() {
 
       setSuccess(res.data.message || "Registered successfully")
       router.push("/login")
-    } catch (err: any) {
-      const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        "Registration failed"
+    } catch (err: unknown) {
+      let message = "Registration failed"
+      if (err && typeof err === "object" && "response" in err) {
+        const response = (err as { response?: { data?: { message?: string; error?: string } } }).response
+        message = response?.data?.message || response?.data?.error || message
+      }
       setError(message)
     }
   }

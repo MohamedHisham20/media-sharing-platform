@@ -50,7 +50,7 @@ export default function FeedPage() {
         token = auth.token
         setUserId(userId)
         setToken(token)
-      } catch (e) {
+      } catch {
         setUserId(null)
         setToken(null)
       }
