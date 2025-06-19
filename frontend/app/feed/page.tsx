@@ -1,13 +1,10 @@
 "use client"
-// import { formatDistanceToNow } from "date-fns"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 dayjs.extend(relativeTime)
 import Link from "next/link";
 import { Plus } from "lucide-react";
-
-
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import {
   Card,
@@ -37,6 +34,8 @@ export default function FeedPage() {
   const [media, setMedia] = useState<MediaItem[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Get auth from localStorage (browser only)
@@ -77,81 +76,131 @@ export default function FeedPage() {
     fetchMedia()
   }, [])
 
-const handleLike = async (id: string) => {
-  if (!userId || !token) return
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/like`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ userId }),
-    });
+  // close fullscreen when clicking outside or escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fullscreenRef.current && !fullscreenRef.current.contains(event.target as Node)) {
+        setFullscreenUrl(null);
+      }
+    };
 
-    const data = await res.json();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFullscreenUrl(null);
+      }
+    };
 
-    setMedia((prev) =>
-      prev.map((item) =>
-        item._id === id
-          ? { ...item, likes: data.likes, dislikes: data.dislikes ?? item.dislikes }
-          : item
-      )
-    );
-  } catch (err) {
-    console.error("Failed to like:", err);
-  }
-};
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
 
-const handleDislike = async (id: string) => {
-  if (!userId || !token) return
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/dislike`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ userId }),
-    });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [fullscreenUrl]);
 
-    const data = await res.json();
+  const handleLike = async (id: string) => {
+    if (!userId || !token) return
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/like`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
 
-    setMedia((prev) =>
-      prev.map((item) =>
-        item._id === id
-          ? { ...item, dislikes: data.dislikes, likes: data.likes ?? item.likes }
-          : item
-      )
-    );
-  } catch (err) {
-    console.error("Failed to dislike:", err);
-  }
-};
+      const data = await res.json();
 
+      setMedia((prev) =>
+        prev.map((item) =>
+          item._id === id
+            ? { ...item, likes: data.likes, dislikes: data.dislikes ?? item.dislikes }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error("Failed to like:", err);
+    }
+  };
 
+  const handleDislike = async (id: string) => {
+    if (!userId || !token) return
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/${id}/dislike`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json();
+
+      setMedia((prev) =>
+        prev.map((item) =>
+          item._id === id
+            ? { ...item, dislikes: data.dislikes, likes: data.likes ?? item.likes }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error("Failed to dislike:", err);
+    }
+  };
+
+  // Helper to check if media is video
+  const isVideo = (type: string, url: string) => {
+    if (type.startsWith("video")) return true;
+    // fallback: check file extension
+    return /\.(mp4|webm|ogg)$/i.test(url);
+  };
 
   return (
-    <div className="container grid gap-6 py-10 md:grid-cols-2 lg:grid-cols-3">
+    <div className="container flex flex-col items-center gap-6 py-10">
       {media.map((item) => (
-        <Card key={item._id}>
+        <Card
+          key={item._id}
+          className="w-full max-w-2xl mx-auto rounded-lg shadow-md" // Increased from max-w-lg to max-w-2xl
+        >
           <CardHeader>
-            <CardTitle>{item.title}</CardTitle>
+            <CardTitle className="truncate">{item.title}</CardTitle>
             <CardDescription>
-                Uploaded by {item.user.username} ·{" "}
-                {/* {new Date(item.createdAt).toLocaleString()} */}
-                {/* {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })} */}
-                {dayjs(item.createdAt).fromNow()}
+              Uploaded by {item.user.username} · {dayjs(item.createdAt).fromNow()}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <Image
-              src={item.url}
-              alt={item.title}
-              width={400}
-              height={300}
-              className="rounded-md object-cover"
-            />
+          <CardContent>
+            <div className="w-full aspect-[16/9] bg-neutral-100 flex items-center justify-center rounded-md overflow-hidden">
+              {isVideo(item.type, item.url) ? (
+                <video
+                  src={item.url}
+                  controls
+                  className="max-h-full max-w-full object-contain bg-black"
+                  style={{ background: "#000", width: "100%", height: "100%" }}
+                  width={960} // Increased width
+                  height={540} // Increased height for 16:9
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="w-full h-full"
+                  style={{ cursor: "zoom-in", background: "none", border: "none", padding: 0 }}
+                  onClick={() => setFullscreenUrl(item.url)}
+                  aria-label="View image fullscreen"
+                >
+                <Image
+                  src={item.url}
+                  alt={item.title}
+                  width={960} // Increased width
+                  height={540} // Increased height for 16:9
+                  className="max-h-full max-w-full object-contain bg-black"
+                  style={{ background: "#000", width: "100%", height: "100%" }}
+                />
+                </button>
+              )}
+            </div>
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button variant="outline" onClick={() => handleLike(item._id)}>
@@ -172,6 +221,28 @@ const handleDislike = async (id: string) => {
           <Plus className="w-6 h-6" />
         </Button>
       </Link>
+      {/* Fullscreen Modal */}
+      {fullscreenUrl && (
+        <div
+          ref={fullscreenRef}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
+          onClick={(e) => {
+            if (e.target === fullscreenRef.current) setFullscreenUrl(null);
+          }}
+          style={{ cursor: "zoom-out" }}
+        >
+          <Image
+            src={fullscreenUrl}
+            alt="Full screen"
+            width={1600}
+            height={900}
+            className="object-contain max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl"
+            style={{ background: "#000" }}
+            onClick={(e) => e.stopPropagation()}
+          />
+    </div>
+  )
+}
     </div>
   )
 }

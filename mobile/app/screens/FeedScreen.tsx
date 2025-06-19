@@ -32,10 +32,6 @@ const FeedScreen = () => {
       const res = await axios.get(`${API_URL}/media`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log("Fetched media:", res.data);
-      res.data.forEach((item: any) => {
-        console.log("Media item:", item);
-      });
       setMedia(res.data);
     } catch (error) {
       console.error("Error fetching media:", error);
