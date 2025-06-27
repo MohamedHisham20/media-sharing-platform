@@ -12,6 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { useAuth } from '@/context/AuthContext'
+
+
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,6 +23,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const { login } = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,17 +44,17 @@ export default function LoginPage() {
         throw new Error(data.message || 'Login failed')
       }
 
-      // Save token & user info
-        localStorage.setItem(
-            "auth",
-            JSON.stringify({
-            token: data.token,
-            userId: data.userId,
-            username: data.username,
-            })
-        );
+      // Update global auth context and optionally localStorage
+      login(data.token, data.userId)
+      localStorage.setItem(
+        "auth",
+        JSON.stringify({
+          token: data.token,
+          userId: data.userId,
+          username: data.username,
+        })
+      )
 
-      // Redirect to feed
       router.push('/feed')
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -61,6 +66,7 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center">

@@ -56,7 +56,7 @@ export default function LandingPage() {
 						alt="bg-img"
 						width={img.size}
 						height={img.size}
-						className="absolute rounded-xl object-cover opacity-20 transition-all duration-1000"
+						className="absolute rounded-xl object-cover opacity-30 transition-all duration-1000"
 						style={{
 							top: `${img.top}vh`,
 							left: `${img.left}vw`,
