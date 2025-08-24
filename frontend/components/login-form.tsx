@@ -13,18 +13,16 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useAuth } from '@/context/AuthContext'
-
-
+import { api } from '@/lib/api'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const { login } = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,30 +30,15 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Login failed')
+      const response = await api.auth.login({ email, password });
+      
+      if (response.success && response.data) {
+        // Use the centralized auth context
+        login(response.data.token, response.data.user);
+        router.push('/feed');
+      } else {
+        throw new Error(response.message || 'Login failed');
       }
-
-      // Update global auth context and optionally localStorage
-      login(data.token, data.userId)
-      localStorage.setItem(
-        "auth",
-        JSON.stringify({
-          token: data.token,
-          userId: data.userId,
-          username: data.username,
-        })
-      )
-
-      router.push('/feed')
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message)
@@ -66,7 +49,6 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-
 
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -83,13 +65,15 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
             />
             <Input
               type="password"
-              placeholder="Password"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
             />
             {error && <p className="text-sm text-red-500">{error}</p>}
           </CardContent>

@@ -1,24 +1,27 @@
-import Media from '../models/media.model';
-import User from '../models/user.model';
 import { Request, Response } from 'express';
-import { uploadToCloudinary } from '../utils/cloudinary';
+import { MediaService } from '../services/media.service';
+import { uploadToCloudinary, verifyUpload } from '../utils/cloudinary';
 import fs from 'fs';
-import mongoose from 'mongoose';
 
 export const uploadMedia = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title } = req.body;
-
-    const userId = (req as any).userId; // Assuming userId is set in the request by authentication middleware
+    const userId = (req as any).userId;
+    
     if (!userId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized' 
+      });
       return;
     }
     
     const file = req.file;
-
     if (!file) {
-      res.status(400).json({ message: 'No file provided' });
+      res.status(400).json({ 
+        success: false, 
+        message: 'No file provided' 
+      });
       return;
     }
 
@@ -27,146 +30,269 @@ export const uploadMedia = async (req: Request, res: Response): Promise<void> =>
     // Upload to Cloudinary
     const cloudinaryUrl = await uploadToCloudinary(file.path, type);
 
-    // delete local file after upload
+    // Delete local file after upload
     fs.unlinkSync(file.path);
 
-    const media = new Media({
+    // Create media using service
+    const media = await MediaService.createMedia({
       title,
       url: cloudinaryUrl,
       type,
-      user: userId,
+      userId
     });
 
-    await media.save();
-    await User.findByIdAndUpdate(userId, { $push: { uploadedMedia: media._id } });
-
-    res.status(201).json(media);
-  } catch (error) {
+    res.status(201).json({
+      success: true,
+      message: 'Media uploaded successfully',
+      data: media
+    });
+  } catch (error: any) {
     console.error('Error uploading media:', error);
-    res.status(500).json({ message: 'Error uploading media', error });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error uploading media', 
+      error: error.message 
+    });
   }
 };
 
-
-export const getMedia = async (_req: Request, res: Response): Promise<void> => {
+export const getMedia = async (req: Request, res: Response): Promise<void> => {
   try {
-    // If want to filter media by userId
-    //  const userId = (req as any).userId;
-    // //  use userId for filtering if needed
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const userId = req.query.userId as string;
+    const type = req.query.type as 'image' | 'video';
 
-    // const media = await Media.find()
-    //   .populate('user', 'username')
-    //   .sort({ createdAt: -1 });
-    // res.json(media);
+    const filters = { userId, type };
+    const result = await MediaService.getMedia({ page, limit }, filters);
 
-    const media = await Media.find().populate('user', 'username').sort({ createdAt: -1 });
-    res.json(media);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching media' });
+    res.json({
+      success: true,
+      message: 'Media fetched successfully',
+      data: result.media,
+      pagination: result.pagination
+    });
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching media',
+      error: error.message 
+    });
   }
 };
 
-export const getPublicMedia = async (_req: Request, res: Response) => {
+export const getPublicMedia = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const media = await Media.find()
-      .populate('user', 'username')
-      .sort({ createdAt: -1 })
-      .limit(6); // Only show latest 6
-
-    res.json(media);
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching public media' });
+    const media = await MediaService.getPublicMedia(6);
+    res.json({
+      success: true,
+      message: 'Public media fetched successfully',
+      data: media
+    });
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching public media',
+      error: error.message 
+    });
   }
 };
 
+export const getMediaById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const media = await MediaService.getMediaById(id);
+    
+    res.json({
+      success: true,
+      message: 'Media fetched successfully',
+      data: media
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
 
 export const likeMedia = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId; // Assuming userId is set in the request by authentication middleware
+    const userId = (req as any).userId;
+    const { id } = req.params;
     
     if (!userId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized' 
+      });
       return;
     }
+
+    const updatedMedia = await MediaService.toggleReaction(id, userId, 'like');
     
-    const user = await User.findById(userId);
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
-      return;
-    }
-    const mediaId = new mongoose.Types.ObjectId(req.params.id);
-    const media = await Media.findById(req.params.id);
-    if (!media) {
-      res.status(404).json({ message: 'Media not found' });
-      return;
-    }
-
-    const hasLiked = user.likedMedia.some(id => id.equals(mediaId));
-    const hasDisliked = user.dislikedMedia.some(id => id.equals(mediaId));
-
-    if (hasLiked) {
-      // Remove like
-      await Media.findByIdAndUpdate(mediaId, { $inc: { likes: -1 } });
-      await User.findByIdAndUpdate(userId, { $pull: { likedMedia: mediaId } });
-      res.status(200).json({ message: 'Like removed', likes: media.likes - 1, dislikes: media.dislikes });
-      return;
-    }
-
-    if (hasDisliked) {
-      // Remove dislike
-      await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: -1 } });
-      await User.findByIdAndUpdate(userId, { $pull: { dislikedMedia: mediaId } });
-    }
-
-    // Add like
-    await Media.findByIdAndUpdate(mediaId, { $inc: { likes: 1 } });
-    await User.findByIdAndUpdate(userId, { $addToSet: { likedMedia: mediaId } });
-
-    res.status(200).json({ message: 'Liked', likes: media.likes + 1, dislikes: hasDisliked ? media.dislikes - 1 : media.dislikes });
-  } catch (error) {
-    console.error('Error liking media:', error);
-    res.status(500).json({ message: 'Error liking media' });
+    res.status(200).json({
+      success: true,
+      message: 'Reaction updated successfully',
+      data: {
+        likes: updatedMedia?.likes,
+        dislikes: updatedMedia?.dislikes
+      }
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };
 
 export const unlikeMedia = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = req.body;
-    const user = await User.findById(userId);
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
-      return;
-    }
-    const mediaId = new mongoose.Types.ObjectId(req.params.id);
-    const media = await Media.findById(req.params.id);
-    if (!media) {
-      res.status(404).json({ message: 'Media not found' });
-      return;
-    }
-
-    const hasLiked = user.likedMedia.some(id => id.equals(mediaId));
-    const hasDisliked = user.dislikedMedia.some(id => id.equals(mediaId));
-
-    if (hasDisliked) {
-      // Remove dislike
-      await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: -1 } });
-      await User.findByIdAndUpdate(userId, { $pull: { dislikedMedia: mediaId } });
-      res.status(200).json({ message: 'Dislike removed', likes: media.likes, dislikes: media.dislikes - 1 });
+    const userId = (req as any).userId;
+    const { id } = req.params;
+    
+    if (!userId) {
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized' 
+      });
       return;
     }
 
-    if (hasLiked) {
-      // Remove like
-      await Media.findByIdAndUpdate(mediaId, { $inc: { likes: -1 } });
-      await User.findByIdAndUpdate(userId, { $pull: { likedMedia: mediaId } });
+    const updatedMedia = await MediaService.toggleReaction(id, userId, 'dislike');
+    
+    res.status(200).json({
+      success: true,
+      message: 'Reaction updated successfully',
+      data: {
+        likes: updatedMedia?.likes,
+        dislikes: updatedMedia?.dislikes
+      }
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// New endpoint for generating pre-signed URLs
+export const getUploadUrl = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).userId;
+    const { type } = req.body;
+    
+    if (!userId) {
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized' 
+      });
+      return;
     }
 
-    // Add dislike
-    await Media.findByIdAndUpdate(mediaId, { $inc: { dislikes: 1 } });
-    await User.findByIdAndUpdate(userId, { $addToSet: { dislikedMedia: mediaId } });
+    if (!type || !['image', 'video'].includes(type)) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Invalid type. Must be image or video' 
+      });
+      return;
+    }
 
-    res.status(200).json({ message: 'Disliked', likes: hasLiked ? media.likes - 1 : media.likes, dislikes: media.dislikes + 1 });
-  } catch (error) {
-    res.status(500).json({ message: 'Error unliking media', error });
+    const signedUrl = await MediaService.generateUploadUrl(userId, type);
+    
+    res.json({
+      success: true,
+      message: 'Upload URL generated successfully',
+      data: signedUrl
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('not found') ? 404 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// New endpoint for confirming direct upload
+export const confirmUpload = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).userId;
+    const { public_id, title, type } = req.body;
+    
+    if (!userId) {
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized' 
+      });
+      return;
+    }
+
+    // Verify the upload was successful
+    const cloudinaryUrl = await verifyUpload(public_id, type);
+
+    // Create media entry
+    const media = await MediaService.createMedia({
+      title,
+      url: cloudinaryUrl,
+      type,
+      userId
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Media upload confirmed successfully',
+      data: media
+    });
+  } catch (error: any) {
+    console.error('Error confirming upload:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error confirming upload', 
+      error: error.message 
+    });
+  }
+};
+
+export const deleteMedia = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).userId;
+    const { id } = req.params;
+    
+    if (!userId) {
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized' 
+      });
+      return;
+    }
+
+    const result = await MediaService.deleteMedia(id, userId);
+    
+    res.json({
+      success: true,
+      message: result.message
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 :
+                      error.message.includes('Unauthorized') ? 403 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };

@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import axios from "axios"
 import {
   Card,
   CardHeader,
@@ -14,39 +13,75 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { api } from "@/lib/api"
 
 export default function RegisterForm() {
   const router = useRouter()
 
-  const [username, setName] = useState("")
+  const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | string[]>("")
   const [success, setSuccess] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setSuccess("")
+    setLoading(true)
 
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/users/register`, {
+      const response = await api.auth.register({
         username,
         email,
         password,
-      })
+      });
 
-      setSuccess(res.data.message || "Registered successfully")
-      router.push("/login")
-    } catch (err: unknown) {
-      let message = "Registration failed"
-      if (err && typeof err === "object" && "response" in err) {
-        const response = (err as { response?: { data?: { message?: string; error?: string } } }).response
-        message = response?.data?.message || response?.data?.error || message
+      if (response.success) {
+        setSuccess(response.message || "Registration successful");
+        setTimeout(() => {
+          router.push("/login");
+        }, 1500);
+      } else {
+        setError(response.message || "Registration failed");
       }
-      setError(message)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        // Try to parse validation errors from the API response
+        try {
+          const errorMessage = err.message;
+          if (errorMessage.includes('Validation error')) {
+            setError("Please check your input and try again");
+          } else {
+            setError(errorMessage);
+          }
+        } catch {
+          setError(err.message);
+        }
+      } else {
+        setError("An unexpected error occurred");
+      }
+    } finally {
+      setLoading(false)
     }
   }
+
+  const renderError = () => {
+    if (!error) return null;
+    
+    if (Array.isArray(error)) {
+      return (
+        <div className="space-y-1">
+          {error.map((err, index) => (
+            <p key={index} className="text-sm text-red-500">{err}</p>
+          ))}
+        </div>
+      );
+    }
+    
+    return <p className="text-sm text-red-500">{error}</p>;
+  };
 
   return (
     <Card className="w-full max-w-md mx-auto mt-20">
@@ -57,13 +92,14 @@ export default function RegisterForm() {
       <form onSubmit={handleSubmit}>
         <CardContent className="flex flex-col gap-4">
           <div>
-            <Label htmlFor="username">User Name</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
               id="username"
               value={username}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               required
-              placeholder="Jane Doe"
+              placeholder="johndoe"
+              autoComplete="username"
             />
           </div>
           <div>
@@ -74,7 +110,8 @@ export default function RegisterForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="jane@example.com"
+              placeholder="john@example.com"
+              autoComplete="email"
             />
           </div>
           <div>
@@ -85,15 +122,16 @@ export default function RegisterForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="••••••••"
+              placeholder="Enter your password"
+              autoComplete="new-password"
             />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {renderError()}
           {success && <p className="text-sm text-green-500">{success}</p>}
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full">
-            Sign Up
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Creating account...' : 'Sign Up'}
           </Button>
         </CardFooter>
       </form>

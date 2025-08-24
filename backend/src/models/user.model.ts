@@ -8,6 +8,6 @@ const userSchema = new mongoose.Schema({
   dislikedMedia: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Media' }],
   profilePicture: { type: String, default: '' }, // URL to profile picture
   uploadedMedia: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Media' }],
-});
+}, { timestamps: true }); // This adds createdAt and updatedAt automatically
 
 export default mongoose.model('User', userSchema);

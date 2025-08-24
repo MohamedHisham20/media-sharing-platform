@@ -1,92 +1,179 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import User from '../models/user.model';
-import { JWT_SECRET } from '../config';
+import { UserService } from '../services/user.service';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, username } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      res.status(400).json({ message: 'User already exists' });
-      return;
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashedPassword,  username });
-
-    await user.save();
+    const userData = req.body;
+    const user = await UserService.createUser(userData);
+    
     res.status(201).json({ 
-      message: 'User created',
-      user: {
-        id: user._id,
-        email: user.email,
-        username: user.username}});
-  } catch (err) {
-    console.error('Register error:', err); // Add this line
-    res.status(500).json({ message: 'Error registering user' });
+      success: true,
+      message: 'User created successfully',
+      data: user
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('already exists') || 
+                      error.message.includes('already taken') ? 409 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
 
 export const login = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
-
-  const user = await User.findOne({ email });
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    res.status(401).json({ message: 'Invalid credentials' });
-    return;
-  }
-
-  if (!JWT_SECRET) {
-    res.status(500).json({ message: 'JWT secret is not defined' });
-    return;
-  }
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1d' });
-
-  res.json({
-    token,
-    userId: user._id,
-    email: user.email,
-    username: user.username,
-  });
-};
-
-// GET: all users
-export const getAllUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const users = await User.find().select('-password'); // exclude password
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching users' });
+    const credentials = req.body;
+    const result = await UserService.loginUser(credentials);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        token: result.token,
+        user: result.user
+      }
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid credentials') ? 401 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
 
-// GET: single user by ID (profile)
+export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result = await UserService.getAllUsers(page, limit);
+    
+    res.json({
+      success: true,
+      message: 'Users fetched successfully',
+      data: result.users,
+      pagination: result.pagination
+    });
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching users',
+      error: error.message 
+    });
+  }
+};
+
 export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) {
-      res.status(404).json({ message: 'User not found' });
-      return;
-    }
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching user' });
+    const { id } = req.params;
+    const user = await UserService.getUserById(id);
+    
+    res.json({
+      success: true,
+      message: 'User profile fetched successfully',
+      data: user
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
 
-// DELETE: user by ID
-export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
-    const deleted = await User.findByIdAndDelete(req.params.id);
-    if (!deleted) {
-      res.status(404).json({ message: 'User not found' });
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Check if user is updating their own profile or is admin
+    const requestingUserId = (req as any).userId;
+    if (requestingUserId !== id) {
+      res.status(403).json({ 
+        success: false,
+        message: 'Forbidden: Can only update your own profile' 
+      });
       return;
     }
-    res.json({ message: 'User deleted' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting user' });
+
+    const user = await UserService.updateUser(id, updateData);
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: user
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 :
+                      error.message.includes('already') ? 409 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+};
+
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    
+    // Check if user is deleting their own account or is admin
+    const requestingUserId = (req as any).userId;
+    if (requestingUserId !== id) {
+      res.status(403).json({ 
+        success: false,
+        message: 'Forbidden: Can only delete your own account' 
+      });
+      return;
+    }
+
+    const result = await UserService.deleteUser(id);
+    
+    res.json({
+      success: true,
+      message: result.message
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+};
+
+export const getUserLikedMedia = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result = await UserService.getUserLikedMedia(id, page, limit);
+    
+    res.json({
+      success: true,
+      message: 'Liked media fetched successfully',
+      data: result.media,
+      pagination: result.pagination
+    });
+  } catch (error: any) {
+    const statusCode = error.message.includes('Invalid') ? 400 : 
+                      error.message.includes('not found') ? 404 : 500;
+    
+    res.status(statusCode).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
