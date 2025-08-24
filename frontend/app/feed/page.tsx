@@ -4,7 +4,7 @@ import relativeTime from "dayjs/plugin/relativeTime"
 dayjs.extend(relativeTime)
 import Link from "next/link";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import Image from "next/image"
 import {
   Card,
@@ -43,16 +43,35 @@ export default function FeedPage() {
 
   const { user, isLoggedIn } = useAuth()
 
-  useEffect(() => {
-    fetchMedia(currentPage)
-  }, [currentPage])
-
-  const fetchMedia = async (page: number) => {
+  const fetchMedia = useCallback(async (page: number) => {
     try {
       setLoading(true)
       setError(null)
       
-      const response = await api.media.getAll(page, 10)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let response: any;
+      
+      if (isLoggedIn) {
+        // Fetch all media with pagination for logged-in users
+        response = await api.media.getAll(page, 10)
+      } else {
+        // Fetch public media for non-authenticated users
+        const publicResponse = await api.media.getPublic()
+        // Transform public response to match expected structure
+        if (publicResponse.success && publicResponse.data) {
+          response = {
+            success: true,
+            data: {
+              media: Array.isArray(publicResponse.data) ? publicResponse.data : [],
+              totalPages: 1,
+              currentPage: 1,
+              totalItems: Array.isArray(publicResponse.data) ? publicResponse.data.length : 0
+            }
+          }
+        } else {
+          response = publicResponse;
+        }
+      }
       
       if (response.success && response.data) {
         setMedia(response.data.media || [])
@@ -68,7 +87,11 @@ export default function FeedPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isLoggedIn])
+
+  useEffect(() => {
+    fetchMedia(currentPage)
+  }, [currentPage, fetchMedia])
 
   // close fullscreen when clicking outside or escape
   useEffect(() => {
