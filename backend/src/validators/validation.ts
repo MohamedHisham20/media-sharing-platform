@@ -130,22 +130,37 @@ export const validateParams = (schema: joi.ObjectSchema) => {
 
 export const validateQuery = (schema: joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const { error, value } = schema.validate(req.query, { 
-      abortEarly: false,
-      stripUnknown: true 
-    });
-
-    if (error) {
-      const errorMessages = error.details.map(detail => detail.message);
-      res.status(400).json({
-        success: false,
-        message: 'Invalid query parameters',
-        errors: errorMessages
+    try {
+      console.log('validateQuery called with req.query:', req.query);
+      
+      const { error, value } = schema.validate(req.query, { 
+        abortEarly: false,
+        stripUnknown: true 
       });
-      return;
-    }
 
-    req.query = value;
-    next();
+      console.log('Validation result:', { error: error?.message, value });
+
+      if (error) {
+        const errorMessages = error.details.map(detail => detail.message);
+        res.status(400).json({
+          success: false,
+          message: 'Invalid query parameters',
+          errors: errorMessages
+        });
+        return;
+      }
+
+      // Instead of modifying req.query directly, attach validated data to req
+      (req as any).validatedQuery = value;
+      console.log('Validation successful, calling next()');
+      next();
+    } catch (err: any) {
+      console.error('Error in validateQuery middleware:', err);
+      res.status(500).json({
+        success: false,
+        message: 'Internal Server Error',
+        error: err.message
+      });
+    }
   };
 };
