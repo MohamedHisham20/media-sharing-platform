@@ -131,14 +131,10 @@ export const validateParams = (schema: joi.ObjectSchema) => {
 export const validateQuery = (schema: joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      console.log('validateQuery called with req.query:', req.query);
-      
       const { error, value } = schema.validate(req.query, { 
         abortEarly: false,
         stripUnknown: true 
       });
-
-      console.log('Validation result:', { error: error?.message, value });
 
       if (error) {
         const errorMessages = error.details.map(detail => detail.message);
@@ -150,16 +146,16 @@ export const validateQuery = (schema: joi.ObjectSchema) => {
         return;
       }
 
-      // Instead of modifying req.query directly, attach validated data to req
+      // Store validated data in a custom property to avoid Express.js req.query issues
+      // This approach works in all Node.js/Express versions and deployment environments
       (req as any).validatedQuery = value;
-      console.log('Validation successful, calling next()');
       next();
     } catch (err: any) {
       console.error('Error in validateQuery middleware:', err);
       res.status(500).json({
         success: false,
-        message: 'Internal Server Error',
-        error: err.message
+        message: 'Validation error',
+        error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
       });
     }
   };

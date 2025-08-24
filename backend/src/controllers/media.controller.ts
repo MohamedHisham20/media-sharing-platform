@@ -58,26 +58,15 @@ export const uploadMedia = async (req: Request, res: Response): Promise<void> =>
 
 export const getMedia = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log('=== getMedia called ===');
-    console.log('req.query:', req.query);
-    console.log('Validated query:', (req as any).validatedQuery);
-    
     // Use validated query data or fallback to req.query
     const query = (req as any).validatedQuery || req.query;
-    console.log('Using query:', query);
-    
     const page = parseInt(query.page as string) || 1;
     const limit = parseInt(query.limit as string) || 10;
     const userId = query.userId as string;
     const type = query.type as 'image' | 'video';
 
-    console.log('Parsed values:', { page, limit, userId, type });
-
     const filters = { userId, type };
-    console.log('Calling MediaService.getMedia with:', { page, limit }, filters);
-    
     const result = await MediaService.getMedia({ page, limit }, filters);
-    console.log('MediaService.getMedia result:', result);
 
     res.json({
       success: true,
@@ -85,15 +74,8 @@ export const getMedia = async (req: Request, res: Response): Promise<void> => {
       data: result.media,
       pagination: result.pagination
     });
-    console.log('Response sent successfully');
   } catch (error: any) {
-    console.error('=== Error in getMedia ===');
-    console.error('Error type:', typeof error);
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('Full error object:', error);
-    
+    console.error('Error in getMedia:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching media',
