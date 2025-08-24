@@ -71,8 +71,12 @@ export const getMedia = async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: true,
       message: 'Media fetched successfully',
-      data: result.media,
-      pagination: result.pagination
+      data: {
+        media: result.media,
+        totalPages: result.pagination.totalPages,
+        currentPage: result.pagination.currentPage,
+        totalItems: result.pagination.totalItems
+      }
     });
   } catch (error: any) {
     console.error('Error in getMedia:', error);
