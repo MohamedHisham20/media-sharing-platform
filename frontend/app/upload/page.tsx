@@ -100,6 +100,13 @@ export default function UploadPage() {
     const fileType = file.type.startsWith('video') ? 'video' : 'image';
 
     try {
+      console.log('🚀 Starting direct upload for:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: fileType,
+        title: title.trim()
+      });
+
       // Step 1: Get pre-signed URL
       setUploadProgress({
         stage: 'getting-url',
@@ -108,9 +115,10 @@ export default function UploadPage() {
       });
 
       const urlResponse = await api.media.getUploadUrl(fileType);
+      console.log('📡 Upload URL response:', urlResponse);
       
       if (!urlResponse.success || !urlResponse.data) {
-        throw new Error('Failed to get upload URL');
+        throw new Error(urlResponse.message || 'Failed to get upload URL');
       }
 
       // Step 2: Upload directly to Cloudinary
@@ -120,7 +128,8 @@ export default function UploadPage() {
         message: 'Uploading to cloud storage...'
       });
 
-      await uploadToCloudinary(file, urlResponse.data);
+      const cloudinaryResult = await uploadToCloudinary(file, urlResponse.data);
+      console.log('☁️ Cloudinary result:', cloudinaryResult);
 
       setUploadProgress({
         stage: 'uploading',
@@ -141,6 +150,8 @@ export default function UploadPage() {
         type: fileType
       });
 
+      console.log('✅ Confirm response:', confirmResponse);
+
       if (!confirmResponse.success) {
         throw new Error(confirmResponse.message || 'Failed to confirm upload');
       }
@@ -156,11 +167,11 @@ export default function UploadPage() {
       }, 1500);
 
     } catch (error) {
-      console.error('Direct upload failed:', error);
+      console.error('❌ Direct upload failed:', error);
       setUploadProgress({
         stage: 'error',
         progress: 0,
-        message: error instanceof Error ? error.message : 'Upload failed'
+        message: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
     }
   };
@@ -170,6 +181,12 @@ export default function UploadPage() {
     if (!file || !title.trim()) return;
 
     try {
+      console.log('🔄 Starting traditional upload for:', {
+        fileName: file.name,
+        fileSize: file.size,
+        title: title.trim()
+      });
+
       setUploadProgress({
         stage: 'uploading',
         progress: 20,
@@ -180,7 +197,10 @@ export default function UploadPage() {
       formData.append("title", title.trim());
       formData.append("file", file);
 
+      console.log('📤 Sending form data to backend...');
+
       const response = await api.media.upload(formData);
+      console.log('📡 Traditional upload response:', response);
 
       if (!response.success) {
         throw new Error(response.message || 'Upload failed');
@@ -197,11 +217,11 @@ export default function UploadPage() {
       }, 1500);
 
     } catch (error) {
-      console.error('Traditional upload failed:', error);
+      console.error('❌ Traditional upload failed:', error);
       setUploadProgress({
         stage: 'error',
         progress: 0,
-        message: error instanceof Error ? error.message : 'Upload failed'
+        message: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
     }
   };

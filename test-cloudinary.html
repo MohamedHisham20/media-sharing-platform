@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudinary Upload Test</title>
+</head>
+<body>
+    <h1>Cloudinary Upload Test</h1>
+    <div id="status"></div>
+    <input type="file" id="fileInput" accept="image/*">
+    <button onclick="testUpload()">Test Upload</button>
+
+    <script>
+        const API_BASE_URL = 'https://media-sharing-platform.onrender.com/api';
+        let authToken = null;
+
+        // First, let's login and get a token
+        async function login() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'debugtest@example.com',
+                        password: 'testpass123'
+                    })
+                });
+
+                const result = await response.json();
+                console.log('Login result:', result);
+
+                if (result.success && result.data && result.data.token) {
+                    authToken = result.data.token;
+                    document.getElementById('status').innerHTML = '✅ Logged in successfully';
+                    return true;
+                } else {
+                    document.getElementById('status').innerHTML = '❌ Login failed: ' + result.message;
+                    return false;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                document.getElementById('status').innerHTML = '❌ Login error: ' + error.message;
+                return false;
+            }
+        }
+
+        async function testUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            if (!authToken) {
+                const loginSuccess = await login();
+                if (!loginSuccess) return;
+            }
+
+            try {
+                document.getElementById('status').innerHTML = '📡 Getting upload URL...';
+
+                // Step 1: Get upload URL
+                const uploadUrlResponse = await fetch(`${API_BASE_URL}/media/upload-url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: JSON.stringify({ type: 'image' })
+                });
+
+                const uploadUrlResult = await uploadUrlResponse.json();
+                console.log('Upload URL result:', uploadUrlResult);
+
+                if (!uploadUrlResult.success) {
+                    throw new Error('Failed to get upload URL: ' + uploadUrlResult.message);
+                }
+
+                const uploadData = uploadUrlResult.data;
+
+                document.getElementById('status').innerHTML = '📤 Uploading to Cloudinary...';
+
+                // Step 2: Upload to Cloudinary
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('public_id', uploadData.public_id);
+                formData.append('signature', uploadData.signature);
+                formData.append('timestamp', uploadData.timestamp.toString());
+                formData.append('api_key', uploadData.api_key);
+
+                console.log('Uploading to Cloudinary with data:', {
+                    url: uploadData.url,
+                    public_id: uploadData.public_id,
+                    api_key: uploadData.api_key,
+                    timestamp: uploadData.timestamp
+                });
+
+                const cloudinaryResponse = await fetch(uploadData.url, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                console.log('Cloudinary response status:', cloudinaryResponse.status);
+                const cloudinaryResult = await cloudinaryResponse.json();
+                console.log('Cloudinary result:', cloudinaryResult);
+
+                if (!cloudinaryResponse.ok) {
+                    throw new Error('Cloudinary upload failed: ' + JSON.stringify(cloudinaryResult));
+                }
+
+                document.getElementById('status').innerHTML = '✅ Upload successful! URL: ' + cloudinaryResult.secure_url;
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                document.getElementById('status').innerHTML = '❌ Upload failed: ' + error.message;
+            }
+        }
+
+        // Auto-login on page load
+        window.onload = async function() {
+            await login();
+        };
+    </script>
+</body>
+</html>

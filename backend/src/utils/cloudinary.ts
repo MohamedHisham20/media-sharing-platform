@@ -35,12 +35,14 @@ export const generateSignedUrl = async (
   timestamp: number;
   api_key: string;
   cloud_name: string;
+  folder: string;
+  resource_type: string;
 }> => {
   try {
     const timestamp = Math.round(new Date().getTime() / 1000);
     const public_id = `${folder}/${crypto.randomUUID()}`;
     
-    // Parameters for the signature
+    // Parameters for the signature (must match what's sent to Cloudinary)
     const params = {
       timestamp,
       public_id,
@@ -58,6 +60,8 @@ export const generateSignedUrl = async (
       timestamp,
       api_key: CLOUDINARY_API_KEY!,
       cloud_name: CLOUDINARY_CLOUD_NAME!,
+      folder,
+      resource_type: type,
     };
   } catch (error: any) {
     throw new Error(`Failed to generate signed URL: ${error.message}`);

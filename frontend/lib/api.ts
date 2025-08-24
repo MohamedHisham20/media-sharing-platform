@@ -166,6 +166,8 @@ export const api = {
         timestamp: number;
         api_key: string;
         cloud_name: string;
+        folder: string;
+        resource_type: string;
       }>('/media/upload-url', {
         method: 'POST',
         body: JSON.stringify({ type }),
@@ -210,25 +212,51 @@ export const uploadToCloudinary = async (
     signature: string;
     timestamp: number;
     api_key: string;
+    folder: string;
+    resource_type: string;
   }
 ): Promise<Record<string, unknown>> => {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('public_id', uploadData.public_id);
-  formData.append('signature', uploadData.signature);
-  formData.append('timestamp', uploadData.timestamp.toString());
-  formData.append('api_key', uploadData.api_key);
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('public_id', uploadData.public_id);
+    formData.append('signature', uploadData.signature);
+    formData.append('timestamp', uploadData.timestamp.toString());
+    formData.append('api_key', uploadData.api_key);
+    formData.append('folder', uploadData.folder);
+    formData.append('resource_type', uploadData.resource_type);
 
-  const response = await fetch(uploadData.url, {
-    method: 'POST',
-    body: formData,
-  });
+    console.log('🚀 Uploading to Cloudinary:', {
+      url: uploadData.url,
+      public_id: uploadData.public_id,
+      api_key: uploadData.api_key,
+      folder: uploadData.folder,
+      resource_type: uploadData.resource_type,
+      fileSize: file.size,
+      fileName: file.name
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to upload to Cloudinary');
+    const response = await fetch(uploadData.url, {
+      method: 'POST',
+      body: formData,
+      // Remove any custom headers that might interfere with CORS
+    });
+
+    console.log('📡 Cloudinary response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Cloudinary error response:', errorText);
+      throw new Error(`Cloudinary upload failed (${response.status}): ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Cloudinary upload successful:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Cloudinary upload error:', error);
+    throw error;
   }
-
-  return response.json();
 };
 
 export default api;

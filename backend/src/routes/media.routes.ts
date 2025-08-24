@@ -75,8 +75,12 @@ router.get('/:id',
 router.post('/upload', 
   authenticateToken, 
   upload.single('file'),
-  validateBody(mediaUploadSchema.keys({
-    title: joi.string().min(1).max(200).required()
+  validateBody(joi.object({
+    title: joi.string().min(1).max(200).required().messages({
+      'string.min': 'Title cannot be empty',
+      'string.max': 'Title cannot exceed 200 characters',
+      'any.required': 'Title is required'
+    })
   })),
   uploadMedia
 );
