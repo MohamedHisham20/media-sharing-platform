@@ -32,9 +32,21 @@ const FeedScreen = () => {
       const res = await axios.get(`${API_URL}/media`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMedia(res.data);
+      
+      // Backend returns: { success: true, data: { media: [], totalPages: X, ... } }
+      // Extract the media array from the correct location
+      const mediaArray = res.data?.data?.media || [];
+      
+      // Ensure we have a valid array
+      if (Array.isArray(mediaArray)) {
+        setMedia(mediaArray);
+      } else {
+        console.error("Media data is not an array:", mediaArray);
+        setMedia([]); // Fallback to empty array
+      }
     } catch (error) {
       console.error("Error fetching media:", error);
+      setMedia([]); // Fallback to empty array on error
     } finally {
       setLoading(false);
     }
@@ -50,8 +62,15 @@ const FeedScreen = () => {
       const res = await axios.get(`${API_URL}/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setLikedMedia(res.data.likedMedia || []);
-      await AsyncStorage.setItem("likedMedia", JSON.stringify(res.data.likedMedia || []));
+      
+      // Ensure we have a valid array before setting and storing
+      const likedMediaArray = Array.isArray(res.data.likedMedia) ? res.data.likedMedia : [];
+      setLikedMedia(likedMediaArray);
+      
+      // Only store if we have a valid array
+      if (Array.isArray(likedMediaArray)) {
+        await AsyncStorage.setItem("likedMedia", JSON.stringify(likedMediaArray));
+      }
     } catch (error) {
       console.error("Error fetching liked media:", error);
     }
@@ -132,7 +151,7 @@ const FeedScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
       }
     >
-      {media.map((item) => (
+      {Array.isArray(media) && media.map((item) => (
         <MediaCard
           key={item._id}
           media={item}

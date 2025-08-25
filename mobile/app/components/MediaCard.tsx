@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { Video, ResizeMode } from "expo-av";
+import { Ionicons } from "@expo/vector-icons";
 
 const CARD_HEIGHT = 250;
 const CARD_WIDTH = "100%";
@@ -48,15 +49,20 @@ const MediaCard: React.FC<MediaCardProps> = ({ media, onLike, onDislike, liked }
     <View style={styles.card}>
       <View style={styles.mediaContainer}>
         {isVideo(media.type) ? (
-          <Video
-            ref={videoRef}
-            source={{ uri: media.url }}
-            style={{ width: "100%", height: 250, backgroundColor: "#000" }}
-            resizeMode={ResizeMode.CONTAIN}
-            useNativeControls
-            isLooping
-            onError={e => console.log("Video error:", e)}
-          />
+          <View style={styles.videoWrapper}>
+            <Video
+              ref={videoRef}
+              source={{ uri: media.url }}
+              style={{ width: "100%", height: 250, backgroundColor: "#000" }}
+              resizeMode={ResizeMode.CONTAIN}
+              useNativeControls
+              isLooping
+              onError={e => console.log("Video error:", e)}
+            />
+            <View style={styles.videoOverlay}>
+              <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.8)" />
+            </View>
+          </View>
         ) : (
           <Image
             source={{ uri: media.url }}
@@ -67,17 +73,30 @@ const MediaCard: React.FC<MediaCardProps> = ({ media, onLike, onDislike, liked }
       </View>
       <View style={styles.info}>
         <Text style={styles.title}>{media.title}</Text>
-        <Text style={styles.meta}>
-          Uploaded by <Text style={styles.bold}>{media.user?.username || "Unknown"}</Text>
-        </Text>
+        <View style={styles.userInfo}>
+          <Ionicons name="person-circle-outline" size={20} color="#aaa" />
+          <Text style={styles.meta}>
+            <Text style={styles.bold}>{media.user?.username || "Unknown"}</Text>
+          </Text>
+        </View>
         <View style={styles.buttons}>
-          <TouchableOpacity onPress={onLike} style={styles.button}>
-            <Text style={[styles.buttonText, liked && { color: "red" }]}>
-              {liked ? "♥" : "♡"} {media.likes}
+          <TouchableOpacity onPress={onLike} style={[styles.button, styles.likeButton]}>
+            <Ionicons 
+              name={liked ? "heart" : "heart-outline"} 
+              size={24} 
+              color={liked ? "#FF6B6B" : "#ccc"} 
+            />
+            <Text style={[styles.buttonText, liked && { color: "#FF6B6B" }]}>
+              {media.likes}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onDislike} style={styles.button}>
-            <Text style={styles.buttonText}>👎 {media.dislikes}</Text>
+          <TouchableOpacity onPress={onDislike} style={[styles.button, styles.dislikeButton]}>
+            <Ionicons 
+              name="thumbs-down-outline" 
+              size={22} 
+              color="#ccc" 
+            />
+            <Text style={styles.buttonText}>{media.dislikes}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -99,6 +118,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     justifyContent: "center",
     alignItems: "center",
+  },
+  videoWrapper: {
+    width: "100%",
+    height: "100%",
+    position: "relative",
+  },
+  videoOverlay: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: [{ translateX: -24 }, { translateY: -24 }],
+    zIndex: 1,
   },
   media: {
     width: "100%",
@@ -124,11 +155,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#fff",
+    marginBottom: 6,
+  },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
   },
   meta: {
     fontSize: 14,
     color: "#aaa",
-    marginTop: 4,
+    marginLeft: 6,
   },
   bold: {
     fontWeight: "bold",
@@ -137,13 +174,28 @@ const styles = StyleSheet.create({
   buttons: {
     flexDirection: "row",
     marginTop: 10,
+    alignItems: "center",
   },
   button: {
-    marginRight: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  likeButton: {
+    backgroundColor: "rgba(255,107,107,0.1)",
+  },
+  dislikeButton: {
+    backgroundColor: "rgba(156,163,175,0.1)",
   },
   buttonText: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#ccc",
+    marginLeft: 6,
+    fontWeight: "600",
   },
 });
 

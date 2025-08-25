@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
+import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -33,11 +33,27 @@ export default function LoginScreen({ navigation }: any) {
         }
       );
 
-      const data = res.data;
+      const response = res.data;
 
-      await AsyncStorage.setItem("token", data.token);
-      await AsyncStorage.setItem("userId", data.userId);
-      login(data.token, data.userId);
+      // Check if the response structure is correct
+      if (!response.success || !response.data || !response.data.token || !response.data.user) {
+        throw new Error('Invalid response structure from server');
+      }
+
+      const token = response.data.token;
+      // Backend returns user.id (not user._id)
+      const userId = response.data.user.id;
+
+      if (!token || !userId) {
+        throw new Error('Missing token or user ID in response');
+      }
+
+      // Store the values in AsyncStorage
+      await AsyncStorage.setItem("token", token);
+      await AsyncStorage.setItem("userId", userId);
+      
+      // Update the auth context
+      login(token, userId);
       navigation.navigate("App"); // Navigate to App (TabNavigator) after successful login
     } catch (error: any) {
       const message =
@@ -70,6 +86,13 @@ export default function LoginScreen({ navigation }: any) {
         onPress={handleLogin}
         disabled={loading}
       />
+      
+      <View style={styles.registerContainer}>
+        <Text style={styles.registerText}>Don't have an account? </Text>
+        <TouchableOpacity onPress={() => navigation.navigate("Register")}>
+          <Text style={styles.registerLink}>Sign Up</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -92,5 +115,20 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     marginBottom: 15,
+  },
+  registerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  registerText: {
+    fontSize: 16,
+    color: "#666",
+  },
+  registerLink: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "600",
   },
 });
