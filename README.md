@@ -7,6 +7,17 @@ A full-stack media-sharing platform built with:
 - ⚙️ **Node.js (Express) + MongoDB** for the backend  
 - ☁️ **Cloudinary** for media storage  
 
+## 🚀 Live Deployment
+
+The platform is fully deployed and accessible:
+
+**🌐 Frontend:** https://mo-hisham-media-sharing-platform.vercel.app/
+- Hosted on **Vercel** with automatic deployments
+
+**⚙️ Backend:** Hosted on **Render**
+- Production API with MongoDB database
+- Cloudinary integration for media storage
+
 ---
 
 ## 🚀 Features
