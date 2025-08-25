@@ -62,13 +62,13 @@ A full-stack media-sharing platform built with:
 ### 📱 Mobile App
 
 #### 🔐 Login Screen  
-<img src="screenshots/mobile-login.jpg" width="250" />
+<img src="screenshots\login_mobile.jpg" width="250" />
 
 #### 📸 Feed with Cards  
-<img src="screenshots/mobile-feed.jpg" width="250" />
+<img src="screenshots\feed_mobile.jpg" width="250" />
 
 #### ⬆️ Upload Screen  
-<img src="screenshots/mobile-upload.jpg" width="250" />
+<img src="screenshots\upload_mobile.jpg" width="250" />
 
 ---
 

@@ -1,5 +1,14 @@
 # Mobile App Setup Guide
 
+## 🚀 Live Deployment
+
+
+**Backend (API):** Hosted on Render
+- Production API endpoint with MongoDB database
+- Cloudinary integration for media storage and processing
+
+You can use the web app to test features and see the full functionality before setting up the mobile development environment.
+
 ## Environment Configuration
 
 ### 1. Environment Variables Setup
