@@ -127,21 +127,16 @@ export const api = {
         ...(filters?.type && { type: filters.type }),
       });
       
-      return apiRequest<{
-        media: Array<{
-          _id: string;
-          title: string;
-          url: string;
-          type: string;
-          likes: number;
-          dislikes: number;
-          createdAt: string;
-          user: { _id: string; username: string };
-        }>;
-        totalPages: number;
-        currentPage: number;
-        totalItems: number;
-      }>(`/media?${params}`, {}, false);
+      return apiRequest<Array<{
+        _id: string;
+        title: string;
+        url: string;
+        type: string;
+        likes: number;
+        dislikes: number;
+        createdAt: string;
+        user: { _id: string; username: string };
+      }>>(`/media?${params}`, {}, false);
     },
 
     getPublic: () =>

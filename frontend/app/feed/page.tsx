@@ -55,8 +55,9 @@ export default function FeedPage() {
       const response = await api.media.getAll(page, 10)
       
       if (response.success && response.data) {
-        setMedia(response.data.media || [])
-        setTotalPages(response.data.totalPages || 1)
+        // Backend returns data as array directly, pagination as separate object
+        setMedia(response.data || [])
+        setTotalPages(response.pagination?.totalPages || 1)
       } else {
         setError(response.message || 'Failed to fetch media')
         setMedia([])
